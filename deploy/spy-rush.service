@@ -1,0 +1,22 @@
+[Unit]
+Description=Spy Rush game and SQLite API
+After=network.target
+
+[Service]
+User=spy-rush
+Group=spy-rush
+WorkingDirectory=/opt/spy-rush
+Environment=SPY_DB_PATH=/var/lib/spy-rush/spy-rush.sqlite3
+Environment=PUBLIC_ORIGIN=https://jeu.example.com
+ExecStart=/opt/spy-rush/.venv/bin/gunicorn --bind 127.0.0.1:8000 --workers 2 --threads 4 --timeout 30 'server:create_app()'
+Restart=on-failure
+StateDirectory=spy-rush
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/spy-rush
+
+[Install]
+WantedBy=multi-user.target
