@@ -1,9 +1,9 @@
 const DIFFICULTY = Object.freeze({
   duration: 30000,
-  spawnDelay: [900, 250],
-  targetLifetime: [1600, 550],
+  spawnDelay: [650, 250],
+  targetLifetime: [1300, 550],
   maxTargets: [2, 6],
-  popDuration: [250, 100],
+  popDuration: [200, 100],
   goodChance: [0.60, 0.45],
   levels: [10000, 20000],
   urgentTime: 5000,
@@ -47,18 +47,18 @@ const DIFFICULTY = Object.freeze({
     } catch { /* Audio availability must never interrupt a round. */ }
   }
   const types = [
-    { sprite: 'agentWithBadge', name: 'Badge autorisé', short: 'seulement les bonnes personnes accèdent aux bons endroits', points: 100 },
-    { sprite: 'doorClosed', name: 'Porte fermée', short: 'Salle métier fermée', points: 100 },
-    { sprite: 'emergencyPhone', name: 'Téléphone d’urgence', short: 'enregistrer et appeler ce numéro en cas d’urgence', points: 100 },
+    { sprite: 'agentWithBadge', name: 'Badge autorisé', short: 'Seulement les bonnes personnes accèdent aux bons endroits', points: 100 },
+    { sprite: 'doorClosed', name: 'Salle métier fermée', short: 'Objets de valeur ou confidentiels sécurisés', points: 100 },
+    { sprite: 'emergencyPhone', name: 'Téléphone d’urgence', short: 'Le numéro d’urgence est au dos du badger, l’enregistrer ou l’appeler en cas d’urgence', points: 100 },
     { sprite: 'agentNoBadge', name: 'Agent sans badge', short: '', points: -150 },
-    { sprite: 'doorOpen', name: 'Salle métier ouverte', short: 'Objet de valeurs et confidentiels non sécurisés', points: -150 },
+    { sprite: 'doorOpen', name: 'Salle métier ouverte', short: '', points: -150 },
     { sprite: 'thief', name: 'Voleur', short: '', points: -200 }
   ];
   $('target-guide').innerHTML = types.map(t => `<div class="guide-card ${t.points > 0 ? 'good' : 'bad'}"><div class="guide-art">${Sprites[t.sprite]()}</div><div class="guide-copy"><strong>${t.name}</strong>${t.short ? `<span>${t.short}</span>` : ''}</div><b>${t.points > 0 ? '+' : '−'}${Math.abs(t.points)}</b></div>`).join('');
   let running = false, start = 0, nextSpawn = 0, raf = 0, score = 0, good = 0, errors = 0, currentLevel = 1, lastDebug = -1, submittedRow = null, generation = 0, attemptId = null;
   const active = new Map();
-  const slots = Array.from({ length: DIFFICULTY.slots }, (_, i) => {
-    const slot = document.createElement('div'); slot.className = 'slot'; slot.dataset.number = String(i + 1).padStart(2,'0'); $('arena').append(slot); return slot;
+  const slots = Array.from({ length: DIFFICULTY.slots }, () => {
+    const slot = document.createElement('div'); slot.className = 'slot'; $('arena').append(slot); return slot;
   });
   function settings(elapsed) {
     const p = Math.min(1, Math.max(0, elapsed / DIFFICULTY.duration));
@@ -165,7 +165,7 @@ const DIFFICULTY = Object.freeze({
     } catch (error) { if (version !== generation) return; $('submit-status').textContent = 'Enregistrement impossible. Vérifiez la connexion au serveur, puis réessayez.'; $('save').disabled = false; $('name').disabled = false; await refreshBoard(); }
   }
   $('score-form').addEventListener('submit', event => { event.preventDefault(); saveScore(); });
-  $('player-form').addEventListener('submit', event => { event.preventDefault(); play(); }); $('replay').addEventListener('click',play); $('refresh-board').addEventListener('click',refreshBoard);
+  $('player-form').addEventListener('submit', event => { event.preventDefault(); play(); }); $('replay').addEventListener('click',play); $('retry-game').addEventListener('click',play); $('refresh-board').addEventListener('click',refreshBoard);
   document.addEventListener('visibilitychange', () => { if (running && performance.now()-start >= DIFFICULTY.duration) finish(); });
   if (debug) window.SpyRushDebug = { settings, types, getState: () => ({ running, score, good, errors, active: active.size }) };
 })();

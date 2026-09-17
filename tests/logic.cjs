@@ -23,11 +23,13 @@ async function main(){
  };
  context.Sprites=context.window.Sprites;context.Leaderboard=context.window.Leaderboard;vm.runInContext(source('game.js'),context);
  const api=context.window.SpyRushDebug;const arena=el('arena'); el('player-name').value='Auto Agent'; const play=()=>el('player-form').listeners.submit({preventDefault(){}});
- assert.equal(api.settings(0).spawnDelay,900);assert.equal(api.settings(30000).spawnDelay,250);assert.equal(api.settings(15000).targetLifetime,1337.5);assert.equal(api.settings(30000).maxTargets,6);
+ assert.equal(api.settings(0).spawnDelay,650);assert.equal(api.settings(30000).spawnDelay,250);assert.equal(api.settings(15000).targetLifetime,1112.5);assert.equal(api.settings(30000).maxTargets,6);
  // Each random value selects a different one of the six types.
  for(const [r,points] of [[0,100],[1,100],[2,100],[3,-150],[4,-150],[5,-200]]){
   rng=[.1,r<3?.1:.9,r<3?(r+.1)/3:(r-3+.1)/3];play();frame(now);const button=arena.children.flatMap(s=>s.children)[0];assert.ok(button);button.listeners.click();assert.equal(api.getState().score,points);button.listeners.click();assert.equal(api.getState().score,points,'no duplicate hit');
  }
+ play();frame(now);arena.children.flatMap(s=>s.children)[0].listeners.click();
+ now+=5000;el('retry-game').listeners.click();assert.equal(api.getState().running,true);assert.equal(api.getState().score,0);assert.equal(api.getState().active,0);assert.equal(el('timer').textContent,'30.0');assert.equal(calls.filter(c=>c.options.method==='POST' && c.url==='/api/attempts').length,0,'restarting does not save an unfinished round');
  play();frame(now);now+=1700;frame(now);assert.equal(api.getState().score,0,'expiry has no penalty');
  now+=28300;frame(now);assert.equal(api.getState().running,false);assert.equal(el('end').hidden,false);
  assert.equal(el('replay').disabled,false,'retry stays available during automatic save');
