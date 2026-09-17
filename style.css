@@ -9,3 +9,6 @@ body{background:#101010}.site-header{gap:24px}.brand{gap:22px}.loreal-logo{width
 @media(max-width:640px){.site-header{height:auto;min-height:112px;flex-wrap:wrap;gap:10px;padding:17px 0 10px}.brand{gap:14px}.loreal-logo{width:112px;height:30px}.game-brand{font-size:17px;padding-left:14px}.main-nav{order:3;width:100%;gap:28px}.main-nav a{font-size:13px;padding:8px 0}.status{font-size:7px;letter-spacing:.4px}.ranking-page td{font-size:14px}.ranking-page th{font-size:10px}.ranking-page .board-mode{font-size:10px}.ranking-page .leaderboard-panel{padding:16px}}
 /* Attempt history: distinguish this browser's player, including repeated names. */
 .table-scroll{overflow-x:auto}.end .table-scroll{max-height:530px;overflow:auto}.player-row{background:#ffffff20}.player-row td:first-child{box-shadow:inset 3px 0 #fff;color:#fff}.ranking-page td:nth-child(3){font:500 25px var(--display);text-align:right}.ranking-page td:last-child{font:400 12px var(--body);color:var(--muted);white-space:nowrap}.ranking-page th:nth-child(3){text-align:right}.ranking-page{max-width:1000px}.ranking-page .lead{font-size:15px}
+
+/* Descriptions longues et relance immédiate. */
+.guide-card{height:auto;min-height:80px;padding-top:8px;padding-bottom:8px}.guide-copy{min-width:0}.guide-copy span{line-height:1.5}.guide-card>b{flex-shrink:0}.retry-button{margin-bottom:26px}

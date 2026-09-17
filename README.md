@@ -80,7 +80,7 @@ Les requêtes utilisent la même origine. Le serveur valide le JSON, la taille d
 
 ## Jeu et vérifications
 
-Badge et porte fermée : +100 ; sans badge et porte ouverte : −150 ; voleur : −200. Une cible ignorée ne coûte rien. Réglages dans `DIFFICULTY` en haut de `game.js`. `?debug=1` active les traces toutes les 5 secondes et les fonctions de diagnostic. Le chrono ne se met pas en pause quand l’onglet est masqué.
+Badge, porte fermée et téléphone d’urgence : +100 ; sans badge et porte ouverte : −150 ; voleur : −200. Une cible ignorée ne coûte rien. Réglages dans `DIFFICULTY` en haut de `game.js`. `?debug=1` active les traces toutes les 5 secondes et les fonctions de diagnostic. Le chrono ne se met pas en pause quand l’onglet est masqué.
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_*.py' -v

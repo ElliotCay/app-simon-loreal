@@ -12,14 +12,49 @@ const DIFFICULTY = Object.freeze({
 (() => {
   const $ = id => document.getElementById(id);
   const debug = new URLSearchParams(location.search).get('debug') === '1';
+  let audioContext;
+  function prepareAudio() {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return null;
+      if (!audioContext || audioContext.state === 'closed') audioContext = new AudioContext();
+      if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+      return audioContext;
+    } catch { return null; }
+  }
+  function playHitSound(isGood) {
+    const context = prepareAudio();
+    if (!context) return;
+    try {
+      // Short, softly enveloped tones keep rapid clicks comfortable.
+      const notes = isGood ? [[660, 880, 0, 0.12], [880, 1100, 0.08, 0.16]] : [[220, 90, 0, 0.23]];
+      for (const [from, to, delay, duration] of notes) {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        const startAt = context.currentTime + delay;
+        oscillator.type = isGood ? 'sine' : 'triangle';
+        oscillator.frequency.setValueAtTime(from, startAt);
+        oscillator.frequency.exponentialRampToValueAtTime(to, startAt + duration);
+        gain.gain.setValueAtTime(0, startAt);
+        gain.gain.linearRampToValueAtTime(0.09, startAt + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.001, startAt + duration);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+        oscillator.start(startAt);
+        oscillator.stop(startAt + duration + 0.01);
+      }
+    } catch { /* Audio availability must never interrupt a round. */ }
+  }
   const types = [
-    { sprite: 'agentWithBadge', name: 'Agent avec badge', short: 'Badge autorisé', points: 100 },
-    { sprite: 'doorClosed', name: 'Porte fermée', short: 'Accès à ouvrir', points: 100 },
-    { sprite: 'agentNoBadge', name: 'Agent sans badge', short: 'Intrus à éviter', points: -150 },
-    { sprite: 'doorOpen', name: 'Porte ouverte', short: 'Déjà ouverte', points: -150 },
-    { sprite: 'thief', name: 'Voleur', short: 'Ne pas toucher', points: -200 }
+    { sprite: 'agentWithBadge', name: 'Badge autorisé', short: 'seulement les bonnes personnes accèdent aux bons endroits', points: 100 },
+    { sprite: 'doorClosed', name: 'Porte fermée', short: 'Salle métier fermée', points: 100 },
+    { sprite: 'emergencyPhone', name: 'Téléphone d’urgence', short: 'enregistrer et appeler ce numéro en cas d’urgence', points: 100 },
+    { sprite: 'agentNoBadge', name: 'Agent sans badge', short: '', points: -150 },
+    { sprite: 'doorOpen', name: 'Salle métier ouverte', short: 'Objet de valeurs et confidentiels non sécurisés', points: -150 },
+    { sprite: 'thief', name: 'Voleur', short: '', points: -200 }
   ];
-  $('target-guide').innerHTML = types.map(t => `<div class="guide-card ${t.points > 0 ? 'good' : 'bad'}"><div class="guide-art">${Sprites[t.sprite]()}</div><div class="guide-copy"><strong>${t.name}</strong><span>${t.short}</span></div><b>${t.points > 0 ? '+' : '−'}${Math.abs(t.points)}</b></div>`).join('');
+  $('target-guide').innerHTML = types.map(t => `<div class="guide-card ${t.points > 0 ? 'good' : 'bad'}"><div class="guide-art">${Sprites[t.sprite]()}</div><div class="guide-copy"><strong>${t.name}</strong>${t.short ? `<span>${t.short}</span>` : ''}</div><b>${t.points > 0 ? '+' : '−'}${Math.abs(t.points)}</b></div>`).join('');
   let running = false, start = 0, nextSpawn = 0, raf = 0, score = 0, good = 0, errors = 0, currentLevel = 1, lastDebug = -1, submittedRow = null, generation = 0, attemptId = null;
   const active = new Map();
   const slots = Array.from({ length: DIFFICULTY.slots }, (_, i) => {
@@ -41,7 +76,7 @@ const DIFFICULTY = Object.freeze({
     if (active.size >= d.maxTargets) return;
     const free = slots.filter(s => !active.has(s));
     const slot = free[Math.floor(Math.random()*free.length)];
-    const pool = Math.random() < d.goodChance ? types.slice(0,2) : types.slice(2);
+    const pool = Math.random() < d.goodChance ? types.filter(t => t.points > 0) : types.filter(t => t.points < 0);
     const type = pool[Math.floor(Math.random()*pool.length)];
     const button = document.createElement('button'); button.className = 'target'; button.style.setProperty('--pop-duration', `${d.popDuration}ms`);
     button.setAttribute('aria-label', type.name); button.innerHTML = Sprites[type.sprite]();
@@ -56,6 +91,7 @@ const DIFFICULTY = Object.freeze({
     if (!target) return;
     if (now >= target.expires) { remove(slot); return; }
     score += target.type.points;
+    playHitSound(target.type.points > 0);
     target.type.points > 0 ? good++ : errors++;
     $('score').textContent = score;
     const feedback = document.createElement('span'); feedback.className = `feedback ${target.type.points < 0 ? 'negative' : ''}`;
@@ -77,7 +113,6 @@ const DIFFICULTY = Object.freeze({
     if (level !== currentLevel) {
       currentLevel = level; $('level').textContent = `NIVEAU ${level}`; $('game').dataset.level = level;
       $('level-banner').textContent = `NIVEAU ${level}`; $('level-banner').classList.remove('announce'); void $('level-banner').offsetWidth; $('level-banner').classList.add('announce');
-      $('live-hint').textContent = level === 2 ? 'LE RYTHME S’ACCÉLÈRE' : 'VIGILANCE MAXIMALE';
     }
     for (const [slot,t] of active) { if (now >= t.expires) remove(slot); else if (t.expires-now < 100) slot.firstElementChild?.classList.add('leaving'); }
     if (now >= nextSpawn) { spawn(now,d); nextSpawn = now + d.spawnDelay; }
@@ -89,11 +124,12 @@ const DIFFICULTY = Object.freeze({
   function play() {
     const player = $('player-name').value.trim();
     if (!player || player.length > 16) { $('player-name').focus(); return; }
+    prepareAudio();
     Leaderboard.setPlayer(player); $('name').value = player;
     cancelAnimationFrame(raf); generation++; running = true; score = good = errors = 0; currentLevel = 1; lastDebug = -1; submittedRow = null; attemptId = crypto.randomUUID();
     for (const slot of slots) remove(slot); document.querySelectorAll('.feedback').forEach(e => e.remove());
     $('score').textContent = '0'; $('timer').textContent = '30.0'; $('level').textContent = 'NIVEAU 1'; $('game').dataset.level = '1'; $('game').classList.remove('urgent','shake');
-    $('level-banner').classList.remove('announce'); $('level-banner').textContent = ''; $('live-hint').textContent = 'IDENTIFIEZ AVANT DE CLIQUER'; $('time-bar').style.width = '100%';
+    $('level-banner').classList.remove('announce'); $('level-banner').textContent = ''; $('time-bar').style.width = '100%';
     $('save').disabled = false; $('name').disabled = false; $('submit-status').textContent = ''; screen('game');
     start = performance.now(); nextSpawn = start; raf = requestAnimationFrame(frame);
   }
@@ -122,12 +158,11 @@ const DIFFICULTY = Object.freeze({
   async function saveScore() { if (submittedRow || $('save').disabled) return;
     const name = $('name').value.trim(); if (!name) { $('submit-status').textContent = 'Entrez un nom de code (1 à 16 caractères).'; return; }
     Leaderboard.setPlayer(name); $('player-name').value = name;
-    const version = generation; $('replay').disabled = true; $('save').disabled = true; $('name').disabled = true; $('submit-status').textContent = 'Transmission…';
+    const version = generation; $('save').disabled = true; $('name').disabled = true; $('submit-status').textContent = 'Transmission…';
     try {
       const row = await Leaderboard.submitScore(name,score,attemptId); if (version !== generation) return;
       submittedRow = row; $('submit-status').textContent = 'Partie enregistrée dans le classement partagé.'; await refreshBoard();
     } catch (error) { if (version !== generation) return; $('submit-status').textContent = 'Enregistrement impossible. Vérifiez la connexion au serveur, puis réessayez.'; $('save').disabled = false; $('name').disabled = false; await refreshBoard(); }
-    finally { if (version === generation) $('replay').disabled = false; }
   }
   $('score-form').addEventListener('submit', event => { event.preventDefault(); saveScore(); });
   $('player-form').addEventListener('submit', event => { event.preventDefault(); play(); }); $('replay').addEventListener('click',play); $('refresh-board').addEventListener('click',refreshBoard);
