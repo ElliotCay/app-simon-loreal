@@ -2,10 +2,10 @@
 // round and recomputes its score. Change both sides together.
 const DIFFICULTY = Object.freeze({
   duration: 30000,
-  spawnDelay: [650, 250],
-  targetLifetime: [1300, 550],
+  spawnDelay: [450, 170],
+  targetLifetime: [950, 450],
   maxTargets: [2, 6],
-  popDuration: [200, 100],
+  popDuration: [140, 70],
   goodChance: [0.60, 0.45],
   comboStep: 4,
   comboMax: 5,
