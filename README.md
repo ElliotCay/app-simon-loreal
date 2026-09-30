@@ -14,7 +14,7 @@ Ouvrir http://127.0.0.1:8000. **Remplace l’ancien `python3 -m http.server`**, 
 
 ## Parties, identité et classement
 
-- Le pseudo est demandé avant de jouer et mémorisé dans le navigateur.
+- Seul un pseudo est demandé avant de jouer et mémorisé dans le navigateur. Si le joueur choisit son identité réelle, elle doit se limiter au prénom et au nom. Aucun e-mail, matricule, équipe ou autre champ personnel n’est demandé ; les champs supplémentaires envoyés à l’API de scores sont refusés.
 - Chaque partie terminée est enregistrée automatiquement dans SQLite, même si le score est inférieur au record ou négatif.
 - Les classements de fin de partie et de la page `classement.html` affichent **toutes les tentatives**, triées par score décroissant, puis date et identifiant croissants. Aucun regroupement par pseudo, aucune limite de 10.
 - La page Classement se rafraîchit toutes les 15 secondes, au retour sur la page et avec « Actualiser ». La fin de partie rafraîchit son classement après l’enregistrement.
@@ -37,7 +37,7 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 
-3. Adapter `deploy/spy-rush.service` : remplacer `https://jeu.example.com` par l’origine HTTPS exacte du jeu (sans slash final). Copier et démarrer le service :
+3. Adapter `deploy/spy-rush.service` : remplacer `https://jeu.example.com` par l’origine HTTPS exacte du jeu (sans slash final), avec un nom de domaine sans mention explicite de l’entreprise. Copier et démarrer le service :
 
 ```sh
 sudo cp deploy/spy-rush.service /etc/systemd/system/spy-rush.service
@@ -91,4 +91,28 @@ Les tests couvrent les règles du jeu, la sauvegarde automatique, les réessais,
 
 ## Identité visuelle
 
-Logo L’Oréal Groupe extrait du SVG de l’en-tête du [site officiel](https://www.loreal.com/fr/) le 16 septembre 2026, conservé dans `assets/loreal-logo.svg`. Palette monochrome inspirée du site officiel ; rouge pour les erreurs. Les polices Google sont facultatives, avec repli sur les polices système.
+Monogramme OA générique dans `assets/oa-logo.svg`, sans nom ni logo du groupe sur les pages publiques. Palette monochrome ; rouge pour les erreurs. Les polices Google sont facultatives, avec repli sur les polices système.
+
+## Préparation à la validation cybersécurité
+
+- `index.html` et `classement.html` contiennent `<meta name="robots" content="noindex, nofollow">` immédiatement après `<head>`.
+- `robots.txt` est à la racine du projet, avec le contenu fourni :
+
+```text
+User-agent: *
+Disallow: /
+```
+
+Le serveur Python expose ce fichier à `/robots.txt`, également via le proxy Nginx existant. Il n’y a pas de dossier `www/` dans cette architecture : la racine HTTP est servie par l’application. Si un hébergement statique avec un dossier `www/` est utilisé, copier `robots.txt` à la racine de ce dossier.
+
+- Toutes les réponses de l’application, y compris celles de l’API, portent aussi l’en-tête `X-Robots-Tag: noindex, nofollow`.
+- Les directives anti-indexation sont des consignes pour les moteurs de recherche, pas une restriction d’accès. Le site reste accessible à toute personne qui connaît son URL.
+
+Après déploiement, vérifier `/robots.txt` et l’en-tête HTTP, puis suivre les étapes externes :
+
+1. Installer un domaine sans mention explicite de l’entreprise et configurer son DNS, son certificat TLS et `PUBLIC_ORIGIN`.
+2. Refaire la demande d’accès au site dans My Services avec l’URL finale.
+3. Faire réaliser le scan de vulnérabilités par la cybersécurité et traiter ses éventuels résultats avant l’ouverture officielle.
+4. Coordonner la coupure temporaire du service jusqu’à sa mise à disposition officielle, selon la décision de l’équipe responsable.
+
+Ces démarches nécessitent les accès au domaine, au serveur ou aux services internes. Les changements du dépôt ne déploient pas l’application et ne réalisent ni la demande My Services, ni le scan, ni l’arrêt du service.
