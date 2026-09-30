@@ -31,9 +31,9 @@ async function main(){
  // The clock advances from the start of the countdown; `at` is the time into the round.
  let origin=0; const go=at=>{now=origin+1800+at;frame(now);};
 
- assert.equal(api.settings(0).spawnDelay,650);assert.equal(api.settings(30000).spawnDelay,250);assert.equal(api.settings(15000).targetLifetime,1112.5);assert.equal(api.settings(30000).maxTargets,6);
- const drawn=api.buildTargets();assert.ok(drawn.length>=40&&drawn.length<=90);assert.equal(JSON.stringify(drawn[0].slice(0,2)),'[0,1300]');
- assert.ok(drawn.every(([at,life,kind])=>Number.isInteger(at)&&at<30000&&life>=550&&life<=1300&&kind>=0&&kind<6));
+ assert.equal(api.settings(0).spawnDelay,450);assert.equal(api.settings(30000).spawnDelay,170);assert.equal(api.settings(15000).targetLifetime,825);assert.equal(api.settings(30000).maxTargets,6);
+ const drawn=api.buildTargets();assert.ok(drawn.length>=60&&drawn.length<=130);assert.equal(JSON.stringify(drawn[0].slice(0,2)),'[0,950]');
+ assert.ok(drawn.every(([at,life,kind])=>Number.isInteger(at)&&at<30000&&life>=450&&life<=950&&kind>=0&&kind<6));
 
  const L=context.Leaderboard;
  assert.equal(L.fullName(' Élodie ','  Dupont-Martin'),'Élodie Dupont-Martin');assert.equal(L.fullName('Jean','D’Ormesson'),'Jean D’Ormesson');

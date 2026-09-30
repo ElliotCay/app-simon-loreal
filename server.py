@@ -28,8 +28,8 @@ COOKIE = 'spy_player'
 # and recomputes its score, so the browser never decides what a round is worth.
 RULES = {
     'duration': 30000,
-    'spawnDelay': (650, 250),
-    'targetLifetime': (1300, 550),
+    'spawnDelay': (450, 170),
+    'targetLifetime': (950, 450),
     'maxTargets': (2, 6),
     'goodChance': (0.60, 0.45),
     'comboStep': 4,

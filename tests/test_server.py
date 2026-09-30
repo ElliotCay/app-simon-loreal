@@ -84,10 +84,10 @@ class ServerTests(unittest.TestCase):
     def test_drawn_rounds_and_replay(self):
         for seed in range(50):
             targets = build_targets(random.Random(seed))
-            self.assertTrue(40 <= len(targets) <= 90)
+            self.assertTrue(60 <= len(targets) <= 130)
             self.assertEqual(targets[0][0], 0)
             for at, life, kind in targets:
-                self.assertTrue(0 <= at < 30000 and 550 <= life <= 1300 and 0 <= kind < 6)
+                self.assertTrue(0 <= at < 30000 and 450 <= life <= 950 and 0 <= kind < 6)
             score, good, errors = replay(targets, good_hits(targets))
             self.assertEqual(errors, 0)
             self.assertTrue(0 < score <= 40000)
