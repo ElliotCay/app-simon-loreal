@@ -16,3 +16,5 @@ body{background:#101010}.site-header{gap:24px}.brand{gap:22px}.oa-logo{width:64p
 /* Relance sur le côté du plateau, au-dessus sur les petits écrans. */
 .game-layout{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:20px;align-items:start}.game-retry{min-width:0;width:100%;padding:16px;gap:12px}
 @media(max-width:640px){.game-layout{grid-template-columns:minmax(0,1fr);gap:12px}.game-retry{grid-row:1;justify-self:end;width:auto}}
+
+.legal-footer{max-width:1200px;margin:0 auto;padding:24px 28px 32px;font-size:12px;line-height:1.6;color:var(--muted);text-align:center;border-top:1px solid var(--line)}
