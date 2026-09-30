@@ -18,8 +18,8 @@ from uuid import UUID, uuid4
 from wsgiref.simple_server import WSGIServer, make_server
 
 ROOT = Path(__file__).resolve().parent
-STATIC = {'index.html', 'classement.html', 'confidentialite.html', 'style.css', 'sprites.js', 'game.js',
-          'leaderboard.js', 'ranking.js', 'privacy.js', 'assets/oa-logo.svg', 'robots.txt',
+STATIC = {'index.html', 'classement.html', 'style.css', 'sprites.js', 'game.js',
+          'leaderboard.js', 'ranking.js', 'assets/oa-logo.svg', 'robots.txt',
           'assets/fonts/barlow-condensed-600.woff2', 'assets/fonts/barlow-condensed-700.woff2',
           'assets/fonts/dm-sans.woff2'}
 COOKIE = 'spy_player'
@@ -104,10 +104,6 @@ def create_app(db_path=None, clock=time.time):
     path = Path(db_path or os.environ.get('SPY_DB_PATH', ROOT / 'data' / 'spy-rush.sqlite3'))
     path.parent.mkdir(parents=True, exist_ok=True)
     retention_days = int(os.environ.get('RETENTION_DAYS', '365'))
-    privacy = {'controller': os.environ.get('PRIVACY_CONTROLLER', ''),
-               'contact': os.environ.get('PRIVACY_CONTACT', ''),
-               'legal_basis': os.environ.get('PRIVACY_LEGAL_BASIS', ''),
-               'retention_days': retention_days}
 
     def connect():
         db = sqlite3.connect(path, timeout=10)
@@ -218,8 +214,6 @@ def create_app(db_path=None, clock=time.time):
                 return reply('403 Forbidden', {'error': 'Origine non autorisée.'})
             if method == 'POST' and environ.get('CONTENT_TYPE', '').split(';')[0] != 'application/json':
                 return reply('415 Unsupported Media Type', {'error': 'JSON requis.'})
-        if route == '/api/privacy' and method == 'GET':
-            return reply('200 OK', privacy)
         db = None
         try:
             db = connect()

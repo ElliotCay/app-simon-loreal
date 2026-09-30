@@ -1,7 +1,7 @@
 #!/bin/sh
 # Déploie le dernier commit (HEAD) sur le VPS : sh deploy/deploy.sh [hôte-ssh]
 # Seuls les fichiers suivis par git sont envoyés. Les réglages propres au serveur
-# (PUBLIC_ORIGIN, PRIVACY_*) vivent dans /etc/systemd/system/spy-rush.service.d/local.conf
+# (PUBLIC_ORIGIN) vivent dans /etc/systemd/system/spy-rush.service.d/local.conf
 # et ne sont jamais écrasés.
 set -eu
 HOST=${1:-spy-rush}

@@ -25,14 +25,7 @@
     return request('/api/scores', { method: 'POST', body: JSON.stringify({ name, game_id: gameId, hits }) });
   }
   function getRanking() { return request('/api/scores'); }
-  function getPrivacy() { return request('/api/privacy'); }
   const playerKey = 'spy-rush-player-v2';
-  async function erase() {
-    const result = await request('/api/scores', { method: 'DELETE' });
-    session = null; player = { first: '', last: '' };
-    try { localStorage.removeItem(playerKey); localStorage.removeItem('spy-rush-player-v1'); } catch {}
-    return result;
-  }
   // Same rule as the server: letters, with single spaces, hyphens or apostrophes inside.
   const namePart = /^\p{L}+(?:[ '’-]\p{L}+)*$/u;
   function fullName(first, last) {
@@ -58,5 +51,5 @@
     }
     tbody.replaceChildren(fragment);
   }
-  window.Leaderboard = { startGame, submitScore, getRanking, getPrivacy, erase, fullName, getPlayer, setPlayer, renderRanking, ensureSession };
+  window.Leaderboard = { startGame, submitScore, getRanking, fullName, getPlayer, setPlayer, renderRanking, ensureSession };
 })();
