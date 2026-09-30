@@ -90,6 +90,16 @@ class ServerTests(unittest.TestCase):
         for path in ['/','/index.html','/classement.html','/assets/oa-logo.svg','/leaderboard.js']:
             self.assertEqual(self.call('GET',path)['status'],200)
 
+    def test_fonts_are_self_hosted(self):
+        font = self.call('GET', '/assets/fonts/dm-sans.woff2')
+        self.assertEqual(font['status'], 200)
+        self.assertEqual(font['headers']['Content-Type'], 'font/woff2')
+        for path in ['/index.html', '/classement.html', '/style.css']:
+            with self.subTest(path=path):
+                body = self.call('GET', path)['body'].decode()
+                self.assertNotIn('googleapis', body)
+                self.assertNotIn('gstatic', body)
+
     def test_robots_file_and_headers(self):
         for method in ['GET', 'HEAD']:
             response = self.call(method, '/robots.txt')

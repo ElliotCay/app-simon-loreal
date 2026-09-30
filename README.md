@@ -91,7 +91,9 @@ Les tests couvrent les règles du jeu, la sauvegarde automatique, les réessais,
 
 ## Identité visuelle
 
-Monogramme OA générique dans `assets/oa-logo.svg`, sans nom ni logo du groupe sur les pages publiques. Palette monochrome ; rouge pour les erreurs. Les polices Google sont facultatives, avec repli sur les polices système.
+Monogramme OA générique dans `assets/oa-logo.svg`, sans nom ni logo du groupe sur les pages publiques. Palette monochrome, avec deux couleurs fonctionnelles : vert clair (`--accent-good`) pour le détail qui rend une cible sûre (badge, cadenas, étiquette d’urgence) et pour les gains, rouge pour les erreurs. Les six cibles sont dessinées en SVG dans `sprites.js`.
+
+Les polices Barlow Condensed et DM Sans (licence SIL OFL, voir `assets/fonts/OFL.txt`) sont servies par l’application depuis `assets/fonts/`. Aucune ressource n’est chargée depuis un service tiers : l’adresse IP des joueurs n’est transmise à personne d’autre que le serveur du jeu.
 
 ## Préparation à la validation cybersécurité
 

@@ -15,7 +15,9 @@ from wsgiref.simple_server import WSGIServer, make_server
 
 ROOT = Path(__file__).resolve().parent
 STATIC = {'index.html', 'classement.html', 'style.css', 'sprites.js', 'game.js',
-          'leaderboard.js', 'ranking.js', 'assets/oa-logo.svg', 'robots.txt'}
+          'leaderboard.js', 'ranking.js', 'assets/oa-logo.svg', 'robots.txt',
+          'assets/fonts/barlow-condensed-600.woff2', 'assets/fonts/barlow-condensed-700.woff2',
+          'assets/fonts/dm-sans.woff2'}
 COOKIE = 'spy_player'
 
 
