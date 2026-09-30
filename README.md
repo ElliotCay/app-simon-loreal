@@ -83,6 +83,19 @@ sudo systemctl reload nginx
 
 Le jeu doit être servi à la racine du domaine. Ne pas exposer directement le port 8000, et ne pas configurer Nginx pour servir tout le dossier du projet. Pour diagnostiquer : `sudo journalctl -u spy-rush -f`.
 
+### Mettre à jour le serveur
+
+Fusionner une PR ne déploie rien. Depuis le dépôt, sur `main` à jour :
+
+```sh
+git pull
+sh deploy/deploy.sh
+```
+
+Le script envoie le dernier commit (fichiers suivis par git uniquement), sauvegarde le code et la base dans `/root/backups/`, recopie l’unité systemd, redémarre le service et vérifie qu’il répond. Il se connecte à l’hôte SSH `spy-rush`, à déclarer dans `~/.ssh/config` avec l’adresse du VPS, l’utilisateur `root` et une clé autorisée sur le serveur.
+
+Les réglages propres au serveur (`PUBLIC_ORIGIN`, `PRIVACY_*`) se placent dans `/etc/systemd/system/spy-rush.service.d/local.conf`, qui prime sur `deploy/spy-rush.service` et n’est jamais écrasé par un déploiement. Les sauvegardes de `/root/backups/` contiennent des données personnelles : les supprimer à la fermeture du jeu.
+
 ### Concurrence et sauvegardes
 
 SQLite utilise le mode WAL et une connexion par requête, avec un délai d’attente de verrou de 10 secondes. Les transactions d’écriture sont courtes. Les lectures peuvent coexister avec une écriture ; SQLite sérialise les écritures. Cela convient à plusieurs joueurs sur **un VPS**. Garder la base sur un disque local, pas sur NFS ni répartie entre plusieurs serveurs. Voir la [documentation SQLite WAL](https://www.sqlite.org/wal.html) et les [réglages Gunicorn](https://docs.gunicorn.org/en/stable/settings.html).
