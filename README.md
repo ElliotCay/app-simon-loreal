@@ -35,14 +35,14 @@ Les règles existent en deux exemplaires, `DIFFICULTY` et `types` dans `game.js`
 Ce que l’application fait d’elle-même :
 
 - **Minimisation.** Seuls le prénom, le nom et les résultats des parties sont enregistrés. Le classement public n’expose ni date ni identifiant.
-- **Information.** Le formulaire renvoie vers `confidentialite.html`, qui décrit les données, leur usage, leur durée de conservation et les droits des joueurs.
+- **Information.** Le formulaire indique que le prénom et le nom apparaissent dans le classement, et le pied de page annonce leur suppression le 3 décembre 2026.
 - **Durée de conservation.** Chaque partie est supprimée automatiquement `RETENTION_DAYS` jours après avoir été jouée (365 par défaut). La purge s’exécute au plus une fois par heure, au lancement d’une partie.
-- **Effacement.** Le bouton « Supprimer mes données » de la page Données efface les parties enregistrées depuis le navigateur, son identifiant et son cookie (`DELETE /api/scores`). Pour effacer un joueur sans passer par son navigateur : `DELETE FROM scores WHERE name_key='prenom nom';` sur la base (clé en minuscules, sans accents).
+- **Effacement.** `DELETE /api/scores` efface les parties enregistrées depuis un navigateur, son identifiant et son cookie ; aucune page du jeu ne l’expose. Pour effacer un joueur sans passer par son navigateur : `DELETE FROM scores WHERE name_key='prenom nom';` sur la base (clé en minuscules, sans accents).
 - **Aucun tiers.** Polices servies par l’application, aucune mesure d’audience. Le cookie et le stockage local sont strictement nécessaires au jeu et ne demandent pas de bandeau de consentement.
 
 Ce qui reste à la charge de l’organisateur avant l’ouverture :
 
-1. Renseigner dans `deploy/spy-rush.service` le responsable du traitement (`PRIVACY_CONTROLLER`), le contact pour l’exercice des droits (`PRIVACY_CONTACT`) et la base légale (`PRIVACY_LEGAL_BASIS`). Ces valeurs s’affichent sur la page Données ; elles ne figurent pas dans le dépôt pour que le nom de l’entreprise n’y apparaisse pas. Sans elles, la page indique « l’organisateur du jeu ».
+1. Prévoir un contact pour l’exercice des droits d’accès, de rectification et d’effacement : le jeu n’en affiche plus.
 2. Faire valider la base légale et la durée de conservation par le DPO, et inscrire le traitement au registre.
 3. Décider qui peut voir le classement. Il affiche des prénoms et des noms à toute personne qui connaît l’URL : `noindex` n’est pas une restriction d’accès. Si le jeu est réservé aux salariés, restreindre l’accès au niveau du réseau ou de Nginx.
 4. Régler la conservation des journaux Nginx, qui contiennent des adresses IP.
@@ -94,7 +94,7 @@ sh deploy/deploy.sh
 
 Le script envoie le dernier commit (fichiers suivis par git uniquement), sauvegarde le code et la base dans `/root/backups/`, recopie l’unité systemd, redémarre le service et vérifie qu’il répond. Il se connecte à l’hôte SSH `spy-rush`, à déclarer dans `~/.ssh/config` avec l’adresse du VPS, l’utilisateur `root` et une clé autorisée sur le serveur.
 
-Les réglages propres au serveur (`PUBLIC_ORIGIN`, `PRIVACY_*`) se placent dans `/etc/systemd/system/spy-rush.service.d/local.conf`, qui prime sur `deploy/spy-rush.service` et n’est jamais écrasé par un déploiement. Les sauvegardes de `/root/backups/` contiennent des données personnelles : les supprimer à la fermeture du jeu.
+Les réglages propres au serveur (`PUBLIC_ORIGIN`) se placent dans `/etc/systemd/system/spy-rush.service.d/local.conf`, qui prime sur `deploy/spy-rush.service` et n’est jamais écrasé par un déploiement. Les sauvegardes de `/root/backups/` contiennent des données personnelles : les supprimer à la fermeture du jeu.
 
 ### Concurrence et sauvegardes
 
@@ -117,7 +117,6 @@ Le classement est recalculé à chaque affichage à partir de toutes les parties
 - `POST /api/scores` avec `{ "name": "Prénom Nom", "game_id": "UUID", "hits": [[cible, instant_ms], …] }` : enregistre la partie. Renvoie `score`, `good`, `errors`, `best`, `new_best`, `rank`, `players` et `gap` (écart avec la place au-dessus, `null` pour le premier). Renvoyer la même partie renvoie le résultat existant ; sous un autre nom, 409.
 - `GET /api/scores` : le classement, `[{ "name", "score", "is_mine" }]`, meilleur score de chaque joueur.
 - `DELETE /api/scores` : efface les parties et l’identifiant du navigateur.
-- `GET /api/privacy` : responsable, contact, base légale et durée de conservation affichés sur la page Données.
 
 Les requêtes utilisent la même origine ; `POST` et `DELETE` vérifient l’en-tête `Origin`. Le serveur valide le JSON, la taille des requêtes (4 ko) et le nom : prénom et nom, 3 à 40 caractères, lettres séparées par une espace, un tiret ou une apostrophe.
 
@@ -144,7 +143,7 @@ Les polices Barlow Condensed et DM Sans (licence SIL OFL, voir `assets/fonts/OFL
 
 ## Préparation à la validation cybersécurité
 
-- `index.html`, `classement.html` et `confidentialite.html` contiennent `<meta name="robots" content="noindex, nofollow">` immédiatement après `<head>`.
+- `index.html` et `classement.html` contiennent `<meta name="robots" content="noindex, nofollow">` immédiatement après `<head>`.
 - `robots.txt` est à la racine du projet, avec le contenu fourni :
 
 ```text

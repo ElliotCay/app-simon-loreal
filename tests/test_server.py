@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import server
 from server import build_targets, clean_name, create_app, replay
 
-PAGES = ['/index.html', '/classement.html', '/confidentialite.html']
+PAGES = ['/index.html', '/classement.html']
 
 
 class PageTags(HTMLParser):
@@ -192,8 +192,6 @@ class ServerTests(unittest.TestCase):
         self.now += 3601
         self.start(other)
         self.assertEqual(self.call('GET', '/api/scores')['body'], [], 'scores past the retention period are purged')
-        info = self.call('GET', '/api/privacy')['body']
-        self.assertEqual(info, {'controller': '', 'contact': '', 'legal_basis': '', 'retention_days': 365})
 
     def test_legacy_attempts_are_erased_with_the_player(self):
         cookie = self.player()
@@ -218,7 +216,7 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.call('GET', '/api/attempts')['status'], 404)
         for path in ['/server.py','/data/spy-rush.sqlite3','/.git/config','/../README.md','/supabase.sql']:
             self.assertEqual(self.call('GET',path)['status'],404)
-        for path in ['/','/assets/oa-logo.svg','/leaderboard.js','/privacy.js', *PAGES]:
+        for path in ['/','/assets/oa-logo.svg','/leaderboard.js', *PAGES]:
             self.assertEqual(self.call('GET',path)['status'],200)
 
     def test_fonts_are_self_hosted(self):
@@ -238,7 +236,7 @@ class ServerTests(unittest.TestCase):
             self.assertTrue(response['headers']['Content-Type'].startswith('text/plain'))
             self.assertEqual(response['headers']['Content-Length'], '26')
             self.assertEqual(response['body'], b'User-agent: *\nDisallow: /\n' if method == 'GET' else b'')
-        for path in ['/', *PAGES, '/api/scores', '/api/privacy', '/missing']:
+        for path in ['/', *PAGES, '/api/scores', '/missing']:
             with self.subTest(path=path):
                 response = self.call('GET', path)
                 self.assertEqual(response['headers']['X-Robots-Tag'], 'noindex, nofollow')
@@ -255,7 +253,6 @@ class ServerTests(unittest.TestCase):
                 self.assertEqual(parser.tags[head + 1], ('meta', {'name': 'robots', 'content': 'noindex, nofollow'}))
                 self.assertTrue(any(tag == 'img' and attrs.get('src') == 'assets/oa-logo.svg'
                                     and attrs.get('alt') == 'OA' for tag, attrs in parser.tags))
-                self.assertTrue(any(tag == 'a' and attrs.get('href') == 'confidentialite.html' for tag, attrs in parser.tags))
                 self.assertIn('supprimés à la fermeture de la page le 3 décembre 2026', page)
                 self.assertNotIn('loreal', page.lower())
                 self.assertNotIn('oréal', page.lower())
