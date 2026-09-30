@@ -12,6 +12,15 @@ const DIFFICULTY = Object.freeze({
 (() => {
   const $ = id => document.getElementById(id);
   const debug = new URLSearchParams(location.search).get('debug') === '1';
+  function createAttemptId() {
+    if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map(byte => byte.toString(16).padStart(2, '0'));
+    return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10).join('')}`;
+  }
   let audioContext;
   function prepareAudio() {
     try {
@@ -47,9 +56,9 @@ const DIFFICULTY = Object.freeze({
     } catch { /* Audio availability must never interrupt a round. */ }
   }
   const types = [
-    { sprite: 'agentWithBadge', name: 'Badge autorisé', short: 'Seulement les bonnes personnes accèdent aux bons endroits', points: 100 },
+    { sprite: 'agentWithBadge', name: 'Agent avec badge', short: 'Seulement les bonnes personnes accèdent aux bons endroits', points: 100 },
     { sprite: 'doorClosed', name: 'Salle métier fermée', short: 'Objets de valeur ou confidentiels sécurisés', points: 100 },
-    { sprite: 'emergencyPhone', name: 'Téléphone d’urgence', short: 'Le numéro d’urgence est au dos du badger, l’enregistrer ou l’appeler en cas d’urgence', points: 100 },
+    { sprite: 'emergencyPhone', name: 'Téléphone d’urgence', short: 'Le numéro d’urgence est au dos du badge, l’enregistrer ou l’appeler en cas d’urgence', points: 100 },
     { sprite: 'agentNoBadge', name: 'Agent sans badge', short: '', points: -150 },
     { sprite: 'doorOpen', name: 'Salle métier ouverte', short: '', points: -150 },
     { sprite: 'thief', name: 'Voleur', short: '', points: -200 }
@@ -126,7 +135,7 @@ const DIFFICULTY = Object.freeze({
     if (!player || player.length > 16) { $('player-name').focus(); return; }
     prepareAudio();
     Leaderboard.setPlayer(player); $('name').value = player;
-    cancelAnimationFrame(raf); generation++; running = true; score = good = errors = 0; currentLevel = 1; lastDebug = -1; submittedRow = null; attemptId = crypto.randomUUID();
+    cancelAnimationFrame(raf); generation++; running = true; score = good = errors = 0; currentLevel = 1; lastDebug = -1; submittedRow = null; attemptId = createAttemptId();
     for (const slot of slots) remove(slot); document.querySelectorAll('.feedback').forEach(e => e.remove());
     $('score').textContent = '0'; $('timer').textContent = '30.0'; $('level').textContent = 'NIVEAU 1'; $('game').dataset.level = '1'; $('game').classList.remove('urgent','shake');
     $('level-banner').classList.remove('announce'); $('level-banner').textContent = ''; $('time-bar').style.width = '100%';
