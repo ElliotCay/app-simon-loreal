@@ -7,6 +7,7 @@ const DIFFICULTY = Object.freeze({
   goodChance: [0.60, 0.45],
   levels: [10000, 20000],
   urgentTime: 5000,
+  countdownStep: 600,
   slots: 12
 });
 (() => {
@@ -31,17 +32,20 @@ const DIFFICULTY = Object.freeze({
       return audioContext;
     } catch { return null; }
   }
-  function playHitSound(isGood) {
+  const muteKey = 'spy-rush-muted-v1';
+  let muted = false;
+  try { muted = localStorage.getItem(muteKey) === '1'; } catch {}
+  function playTones(type, notes) {
+    if (muted) return;
     const context = prepareAudio();
     if (!context) return;
     try {
       // Short, softly enveloped tones keep rapid clicks comfortable.
-      const notes = isGood ? [[660, 880, 0, 0.12], [880, 1100, 0.08, 0.16]] : [[220, 90, 0, 0.23]];
       for (const [from, to, delay, duration] of notes) {
         const oscillator = context.createOscillator();
         const gain = context.createGain();
         const startAt = context.currentTime + delay;
-        oscillator.type = isGood ? 'sine' : 'triangle';
+        oscillator.type = type;
         oscillator.frequency.setValueAtTime(from, startAt);
         oscillator.frequency.exponentialRampToValueAtTime(to, startAt + duration);
         gain.gain.setValueAtTime(0, startAt);
@@ -55,6 +59,21 @@ const DIFFICULTY = Object.freeze({
       }
     } catch { /* Audio availability must never interrupt a round. */ }
   }
+  const SOUNDS = {
+    good: ['sine', [[660, 880, 0, 0.12], [880, 1100, 0.08, 0.16]]],
+    bad: ['triangle', [[220, 90, 0, 0.23]]],
+    count: ['sine', [[440, 440, 0, 0.09]]],
+    go: ['sine', [[880, 880, 0, 0.2]]],
+    tick: ['square', [[1200, 1200, 0, 0.03]]],
+    end: ['sine', [[660, 660, 0, 0.12], [520, 520, 0.12, 0.12], [390, 390, 0.24, 0.3]]]
+  };
+  function playSound(name) { playTones(...SOUNDS[name]); }
+  function vibrate(pattern) { try { navigator.vibrate?.(pattern); } catch {} }
+  function showMute() {
+    $('mute').textContent = muted ? 'SON COUPÉ' : 'SON ACTIF';
+    $('mute').setAttribute('aria-pressed', String(muted));
+  }
+  function restart(element, name) { element.classList.remove(name); void element.offsetWidth; element.classList.add(name); }
   const types = [
     { sprite: 'agentWithBadge', name: 'Agent avec badge', short: 'Seulement les bonnes personnes accèdent aux bons endroits', points: 100 },
     { sprite: 'doorClosed', name: 'Salle métier fermée', short: 'Objets de valeur ou confidentiels sécurisés', points: 100 },
@@ -64,7 +83,7 @@ const DIFFICULTY = Object.freeze({
     { sprite: 'thief', name: 'Voleur', short: '', points: -200 }
   ];
   $('target-guide').innerHTML = types.map(t => `<div class="guide-card ${t.points > 0 ? 'good' : 'bad'}"><div class="guide-art">${Sprites[t.sprite]()}</div><div class="guide-copy"><strong>${t.name}</strong>${t.short ? `<span>${t.short}</span>` : ''}</div><b>${t.points > 0 ? '+' : '−'}${Math.abs(t.points)}</b></div>`).join('');
-  let running = false, start = 0, nextSpawn = 0, raf = 0, score = 0, good = 0, errors = 0, currentLevel = 1, lastDebug = -1, submittedRow = null, generation = 0, attemptId = null;
+  let running = false, start = 0, nextSpawn = 0, raf = 0, score = 0, good = 0, errors = 0, currentLevel = 1, lastDebug = -1, submittedRow = null, generation = 0, attemptId = null, countdown = 0, lastTick = 0;
   const active = new Map();
   const slots = Array.from({ length: DIFFICULTY.slots }, () => {
     const slot = document.createElement('div'); slot.className = 'slot'; $('arena').append(slot); return slot;
@@ -79,7 +98,7 @@ const DIFFICULTY = Object.freeze({
     values.maxTargets = Math.round(values.maxTargets);
     return values;
   }
-  function screen(id) { for (const name of ['home','game','end']) $(name).hidden = name !== id; window.scrollTo({ top: 0, behavior: 'instant' }); }
+  function screen(id) { for (const name of ['home','game','end']) $(name).hidden = name !== id; document.body.classList.toggle('playing', id === 'game'); window.scrollTo({ top: 0, behavior: 'instant' }); }
   function remove(slot) { active.delete(slot); slot.replaceChildren(); }
   function spawn(now, d) {
     if (active.size >= d.maxTargets) return;
@@ -90,38 +109,50 @@ const DIFFICULTY = Object.freeze({
     const button = document.createElement('button'); button.className = 'target'; button.style.setProperty('--pop-duration', `${d.popDuration}ms`);
     button.setAttribute('aria-label', type.name); button.innerHTML = Sprites[type.sprite]();
     active.set(slot, { expires: now + d.targetLifetime, type });
+    // pointerdown answers as soon as the finger lands; click remains for the keyboard.
+    button.addEventListener('pointerdown', event => { event.preventDefault(); hit(slot); });
     button.addEventListener('click', () => hit(slot)); slot.append(button);
   }
   function hit(slot) {
     const now = performance.now();
     if (!running) return;
+    if (now < start) return;
     if (now - start >= DIFFICULTY.duration) { finish(); return; }
     const target = active.get(slot);
     if (!target) return;
     if (now >= target.expires) { remove(slot); return; }
     score += target.type.points;
-    playHitSound(target.type.points > 0);
-    target.type.points > 0 ? good++ : errors++;
+    const isGood = target.type.points > 0;
+    playSound(isGood ? 'good' : 'bad'); vibrate(isGood ? 12 : [50, 40, 50]);
+    isGood ? good++ : errors++;
     $('score').textContent = score;
     const feedback = document.createElement('span'); feedback.className = `feedback ${target.type.points < 0 ? 'negative' : ''}`;
     feedback.textContent = `${target.type.points > 0 ? '+' : '−'}${Math.abs(target.type.points)}`;
     feedback.style.left = `${slot.offsetLeft + slot.offsetWidth/2}px`; feedback.style.top = `${slot.offsetTop + slot.offsetHeight/2}px`;
     $('arena').append(feedback); feedback.addEventListener('animationend', () => feedback.remove(), { once: true });
-    if (target.type.points < 0) { $('game').classList.remove('shake'); void $('game').offsetWidth; $('game').classList.add('shake'); }
-    remove(slot);
+    if (!isGood) restart($('arena'), 'shake');
+    remove(slot); slot.classList.remove('hit-good', 'hit-bad'); restart(slot, isGood ? 'hit-good' : 'hit-bad');
   }
   function frame(now) {
     if (!running) return;
     const elapsed = now - start, remaining = Math.max(0, DIFFICULTY.duration-elapsed);
+    if (elapsed < 0) {
+      const step = Math.ceil(-elapsed / DIFFICULTY.countdownStep);
+      if (step !== countdown) { countdown = step; $('countdown').textContent = step; restart($('countdown'), 'announce'); playSound('count'); }
+      raf = requestAnimationFrame(frame); return;
+    }
+    if (countdown) { countdown = 0; $('countdown').textContent = ''; playSound('go'); }
     if (!remaining) { if (debug) console.debug('[Spy Rush] 30 s', settings(DIFFICULTY.duration)); finish(); return; }
     const d = settings(elapsed);
     $('timer').textContent = (remaining/1000).toFixed(1);
     $('time-bar').style.width = `${remaining/DIFFICULTY.duration*100}%`;
     $('game').classList.toggle('urgent', remaining <= DIFFICULTY.urgentTime);
+    const second = Math.ceil(remaining / 1000);
+    if (remaining <= DIFFICULTY.urgentTime && second !== lastTick) { lastTick = second; playSound('tick'); }
     const level = 1 + DIFFICULTY.levels.filter(t => elapsed >= t).length;
     if (level !== currentLevel) {
       currentLevel = level; $('level').textContent = `NIVEAU ${level}`; $('game').dataset.level = level;
-      $('level-banner').textContent = `NIVEAU ${level}`; $('level-banner').classList.remove('announce'); void $('level-banner').offsetWidth; $('level-banner').classList.add('announce');
+      $('level-banner').textContent = `NIVEAU ${level}`; restart($('level-banner'), 'announce');
     }
     for (const [slot,t] of active) { if (now >= t.expires) remove(slot); else if (t.expires-now < 100) slot.firstElementChild?.classList.add('leaving'); }
     if (now >= nextSpawn) { spawn(now,d); nextSpawn = now + d.spawnDelay; }
@@ -135,15 +166,16 @@ const DIFFICULTY = Object.freeze({
     if (!player || player.length > 16) { $('player-name').focus(); return; }
     prepareAudio();
     Leaderboard.setPlayer(player); $('name').value = player;
-    cancelAnimationFrame(raf); generation++; running = true; score = good = errors = 0; currentLevel = 1; lastDebug = -1; submittedRow = null; attemptId = createAttemptId();
-    for (const slot of slots) remove(slot); document.querySelectorAll('.feedback').forEach(e => e.remove());
-    $('score').textContent = '0'; $('timer').textContent = '30.0'; $('level').textContent = 'NIVEAU 1'; $('game').dataset.level = '1'; $('game').classList.remove('urgent','shake');
+    cancelAnimationFrame(raf); generation++; running = true; score = good = errors = 0; currentLevel = 1; lastDebug = -1; countdown = 0; lastTick = 0; submittedRow = null; attemptId = createAttemptId();
+    for (const slot of slots) { remove(slot); slot.classList.remove('hit-good', 'hit-bad'); } document.querySelectorAll('.feedback').forEach(e => e.remove());
+    $('score').textContent = '0'; $('timer').textContent = '30.0'; $('level').textContent = 'NIVEAU 1'; $('game').dataset.level = '1'; $('game').classList.remove('urgent'); $('arena').classList.remove('shake'); $('countdown').textContent = '';
     $('level-banner').classList.remove('announce'); $('level-banner').textContent = ''; $('time-bar').style.width = '100%';
     $('save').disabled = false; $('name').disabled = false; $('submit-status').textContent = ''; screen('game');
-    start = performance.now(); nextSpawn = start; raf = requestAnimationFrame(frame);
+    start = performance.now() + 3 * DIFFICULTY.countdownStep; nextSpawn = start; raf = requestAnimationFrame(frame);
   }
+  function quit() { running = false; generation++; cancelAnimationFrame(raf); for (const slot of slots) remove(slot); screen('home'); }
   function finish() {
-    running = false; cancelAnimationFrame(raf); for (const slot of slots) remove(slot);
+    running = false; cancelAnimationFrame(raf); playSound('end'); for (const slot of slots) remove(slot);
     $('final-score').textContent = score; $('good-clicks').textContent = good; $('errors').textContent = errors; $('accuracy').textContent = `${good+errors ? Math.round(good/(good+errors)*100) : 0} %`;
     screen('end'); saveScore();
   }
@@ -174,7 +206,9 @@ const DIFFICULTY = Object.freeze({
     } catch (error) { if (version !== generation) return; $('submit-status').textContent = 'Enregistrement impossible. Vérifiez la connexion au serveur, puis réessayez.'; $('save').disabled = false; $('name').disabled = false; await refreshBoard(); }
   }
   $('score-form').addEventListener('submit', event => { event.preventDefault(); saveScore(); });
-  $('player-form').addEventListener('submit', event => { event.preventDefault(); play(); }); $('replay').addEventListener('click',play); $('retry-game').addEventListener('click',play); $('refresh-board').addEventListener('click',refreshBoard);
+  $('player-form').addEventListener('submit', event => { event.preventDefault(); play(); }); $('replay').addEventListener('click',play); $('retry-game').addEventListener('click',play); $('quit-game').addEventListener('click',quit); $('refresh-board').addEventListener('click',refreshBoard);
+  $('mute').addEventListener('click', () => { muted = !muted; try { localStorage.setItem(muteKey, muted ? '1' : '0'); } catch {} showMute(); });
+  showMute();
   document.addEventListener('visibilitychange', () => { if (running && performance.now()-start >= DIFFICULTY.duration) finish(); });
   if (debug) window.SpyRushDebug = { settings, types, getState: () => ({ running, score, good, errors, active: active.size }) };
 })();

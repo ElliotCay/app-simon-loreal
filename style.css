@@ -13,8 +13,17 @@ body{background:#101010}.site-header{gap:24px}.brand{gap:22px}.oa-logo{width:64p
 /* Descriptions longues et relance immédiate. */
 .guide-card{height:auto;min-height:80px;padding-top:8px;padding-bottom:8px}.guide-copy{min-width:0}.guide-copy span{line-height:1.5}.guide-card>b{flex-shrink:0}.retry-button{margin-bottom:26px}
 
-/* Relance sur le côté du plateau, au-dessus sur les petits écrans. */
-.game-layout{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:20px;align-items:start}.game-retry{min-width:0;width:100%;padding:16px;gap:12px}
-@media(max-width:640px){.game-layout{grid-template-columns:minmax(0,1fr);gap:12px}.game-retry{grid-row:1;justify-self:end;width:auto}}
-
-.legal-footer{max-width:1200px;margin:0 auto;padding:24px 28px 32px;font-size:12px;line-height:1.6;color:var(--muted);text-align:center;border-top:1px solid var(--line)}
+/* Mode jeu : le plateau occupe tout l'écran, sans défilement ni zoom. */
+body.playing{overflow:hidden;overscroll-behavior:none;touch-action:manipulation}body.playing .site-header{display:none}
+body.playing main{max-width:none;height:100vh;height:100dvh;display:flex;flex-direction:column;justify-content:center;padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+#game{display:flex;flex-direction:column;flex:1;min-height:0;width:100%;max-height:820px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.game-actions{display:flex;gap:8px}.chip-button{border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:1.2px;padding:0 14px;min-height:36px;min-width:36px}.chip-button:hover{color:#fff;border-color:#777}
+.hud{margin:10px 0 8px;align-items:flex-end}.hud strong{font-size:clamp(44px,11vw,64px);line-height:1}.time-track{height:4px;margin-bottom:12px}
+.arena-wrap{flex:1;min-height:0}.arena{height:100%;grid-template-rows:repeat(3,minmax(0,1fr))}.slot{height:auto;min-height:0}
+.target{cursor:pointer}.slot.hit-good{animation:hit-good .3s ease-out}.slot.hit-bad{animation:hit-bad .3s ease-out}
+.countdown{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;font:700 clamp(96px,30vw,180px) var(--display);text-shadow:0 4px 24px #000}.countdown.announce{animation:count .6s ease-out}
+@keyframes hit-good{from{box-shadow:inset 0 0 0 3px #fff,0 0 22px #ffffff80;background:#4a4a4a}}@keyframes hit-bad{from{box-shadow:inset 0 0 0 3px var(--red);background:#5a2b24}}@keyframes count{0%{opacity:0;transform:scale(1.5)}20%,70%{opacity:1;transform:none}100%{opacity:0;transform:scale(.85)}}
+@media(max-width:640px){.arena{grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,minmax(0,1fr))}.slot{height:auto}}
+@media(orientation:landscape) and (max-height:520px){.arena{grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(2,minmax(0,1fr));gap:8px}.hud{margin:4px 0}.hud strong{font-size:34px}.hud .label{display:none}.time-track{margin-bottom:8px}}
+@media(prefers-reduced-motion:reduce){.slot.hit-good,.slot.hit-bad{animation-duration:.12s}.countdown.announce{animation:count .6s linear}}
+.legal-footer{max-width:1200px;margin:0 auto;padding:24px 28px 32px;font-size:12px;line-height:1.6;color:var(--muted);text-align:center;border-top:1px solid var(--line)}body.playing .legal-footer{display:none}
