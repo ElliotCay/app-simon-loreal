@@ -15,7 +15,7 @@ from wsgiref.simple_server import WSGIServer, make_server
 
 ROOT = Path(__file__).resolve().parent
 STATIC = {'index.html', 'classement.html', 'style.css', 'sprites.js', 'game.js',
-          'leaderboard.js', 'ranking.js', 'assets/loreal-logo.svg'}
+          'leaderboard.js', 'ranking.js', 'assets/oa-logo.svg', 'robots.txt'}
 COOKIE = 'spy_player'
 
 
@@ -54,7 +54,8 @@ def create_app(db_path=None):
             body = value if isinstance(value, bytes) else json.dumps(value, ensure_ascii=False).encode()
             headers = [('Content-Type', content_type), ('Content-Length', str(len(body))),
                        ('Cache-Control', 'no-store'), ('X-Content-Type-Options', 'nosniff'),
-                       ('Referrer-Policy', 'same-origin'), *extra]
+                       ('Referrer-Policy', 'same-origin'),
+                       ('X-Robots-Tag', 'noindex, nofollow'), *extra]
             start_response(status, headers)
             return [b'' if environ['REQUEST_METHOD'] == 'HEAD' else body]
 
@@ -112,7 +113,7 @@ def create_app(db_path=None):
                 if not 0 < length <= 4096:
                     return reply('413 Content Too Large', {'error': 'Requête trop volumineuse ou vide.'})
                 data = json.loads(environ['wsgi.input'].read(length))
-                if not isinstance(data, dict):
+                if not isinstance(data, dict) or set(data) != {'name', 'score', 'attempt_id'}:
                     raise ValueError()
                 name, score, attempt_id = data.get('name'), data.get('score'), data.get('attempt_id')
                 if not isinstance(name, str) or not 1 <= len(name.strip()) <= 16 or any(ord(c) < 32 for c in name):

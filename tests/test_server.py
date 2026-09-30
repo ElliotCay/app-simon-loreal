@@ -1,6 +1,7 @@
 import concurrent.futures
 import io
 import json
+from html.parser import HTMLParser
 import sys
 import tempfile
 import unittest
@@ -8,6 +9,15 @@ from pathlib import Path
 from uuid import uuid4
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from server import create_app
+
+
+class PageTags(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags = []
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.append((tag, dict(attrs)))
 
 
 class ServerTests(unittest.TestCase):
@@ -77,8 +87,47 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.call('POST','/api/session',{},CONTENT_TYPE='text/plain')['status'],415)
         for path in ['/server.py','/data/spy-rush.sqlite3','/.git/config','/../README.md','/supabase.sql']:
             self.assertEqual(self.call('GET',path)['status'],404)
-        for path in ['/','/index.html','/classement.html','/assets/loreal-logo.svg','/leaderboard.js']:
+        for path in ['/','/index.html','/classement.html','/assets/oa-logo.svg','/leaderboard.js']:
             self.assertEqual(self.call('GET',path)['status'],200)
+
+    def test_robots_file_and_headers(self):
+        for method in ['GET', 'HEAD']:
+            response = self.call(method, '/robots.txt')
+            self.assertEqual(response['status'], 200)
+            self.assertTrue(response['headers']['Content-Type'].startswith('text/plain'))
+            self.assertEqual(response['headers']['Content-Length'], '26')
+            self.assertEqual(response['body'], b'User-agent: *\nDisallow: /\n' if method == 'GET' else b'')
+        for path in ['/', '/index.html', '/classement.html', '/api/attempts', '/missing']:
+            with self.subTest(path=path):
+                response = self.call('GET', path)
+                self.assertEqual(response['headers']['X-Robots-Tag'], 'noindex, nofollow')
+        session = self.call('POST', '/api/session', {})
+        self.assertEqual(session['headers']['X-Robots-Tag'], 'noindex, nofollow')
+
+    def test_public_pages_hide_company_brand_and_prevent_indexing(self):
+        for path in ['/index.html', '/classement.html']:
+            with self.subTest(path=path):
+                page = self.call('GET', path)['body'].decode()
+                parser = PageTags()
+                parser.feed(page)
+                head = next(i for i, (tag, _) in enumerate(parser.tags) if tag == 'head')
+                self.assertEqual(parser.tags[head + 1], ('meta', {'name': 'robots', 'content': 'noindex, nofollow'}))
+                self.assertTrue(any(tag == 'img' and attrs.get('src') == 'assets/oa-logo.svg'
+                                    and attrs.get('alt') == 'OA' for tag, attrs in parser.tags))
+                self.assertNotIn('loreal', page.lower())
+                self.assertNotIn('oréal', page.lower())
+        self.assertEqual(self.call('GET', '/assets/loreal-logo.svg')['status'], 404)
+
+    def test_scores_reject_additional_personal_fields(self):
+        cookie = self.player()
+        for field in ['email', 'employee_id', 'team']:
+            with self.subTest(field=field):
+                response = self.call('POST', '/api/attempts', {
+                    'name': 'Agent', 'score': 100, 'attempt_id': str(uuid4()), field: 'extra'
+                }, cookie)
+                self.assertEqual(response['status'], 400)
+        self.assertEqual(self.call('GET', '/api/attempts')['body'], [])
+        self.assertEqual(self.post(cookie, 100)['status'], 200)
 
 
 if __name__ == '__main__':
