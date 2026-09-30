@@ -8,6 +8,11 @@ Group=spy-rush
 WorkingDirectory=/opt/spy-rush
 Environment=SPY_DB_PATH=/var/lib/spy-rush/spy-rush.sqlite3
 Environment=PUBLIC_ORIGIN=https://jeu.example.com
+# Données personnelles : affichés sur la page Données du jeu. À renseigner avant l'ouverture.
+Environment=RETENTION_DAYS=365
+Environment="PRIVACY_CONTROLLER="
+Environment="PRIVACY_CONTACT="
+Environment="PRIVACY_LEGAL_BASIS="
 ExecStart=/opt/spy-rush/.venv/bin/gunicorn --bind 127.0.0.1:8000 --workers 2 --threads 4 --timeout 30 'server:create_app()'
 Restart=on-failure
 StateDirectory=spy-rush

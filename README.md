@@ -4,24 +4,51 @@ Jeu HTML/CSS/JS sans compilation, API Python et base SQLite sur le même serveur
 
 ## Démarrer en local
 
-Python 3.10 ou plus récent :
+Python 3.10 ou plus récent, avec SQLite 3.25 ou plus récent :
 
 ```sh
 python3 server.py
 ```
 
-Ouvrir http://127.0.0.1:8000. **Remplace l’ancien `python3 -m http.server`**, qui ne fournit pas l’API. Le serveur crée automatiquement `data/spy-rush.sqlite3`. `HOST`, `PORT` et `SPY_DB_PATH` permettent de changer l’écoute ou le fichier de base.
+Ouvrir http://127.0.0.1:8000. **Remplace l’ancien `python3 -m http.server`**, qui ne fournit pas l’API. Le serveur crée automatiquement `data/spy-rush.sqlite3`. `HOST`, `PORT` et `SPY_DB_PATH` permettent de changer l’écoute ou le fichier de base. `RETENTION_DAYS` fixe la durée de conservation des parties.
 
 ## Parties, identité et classement
 
-- Seul un pseudo est demandé avant de jouer et mémorisé dans le navigateur. Si le joueur choisit son identité réelle, elle doit se limiter au prénom et au nom. Aucun e-mail, matricule, équipe ou autre champ personnel n’est demandé ; les champs supplémentaires envoyés à l’API de scores sont refusés.
-- Chaque partie terminée est enregistrée automatiquement dans SQLite, même si le score est inférieur au record ou négatif.
-- Les classements de fin de partie et de la page `classement.html` affichent **toutes les tentatives**, triées par score décroissant, puis date et identifiant croissants. Aucun regroupement par pseudo, aucune limite de 10.
-- La page Classement se rafraîchit toutes les 15 secondes, au retour sur la page et avec « Actualiser ». La fin de partie rafraîchit son classement après l’enregistrement.
-- Les lignes du joueur sont surlignées et portent « Vous ». L’identité est un jeton aléatoire dans un cookie HttpOnly, SameSite=Lax, conservé pendant un an et Secure sous HTTPS ; la base conserve uniquement son empreinte. Le pseudo ne sert pas d’identifiant : deux joueurs homonymes restent distincts.
-- L’identité est propre au navigateur. Effacer le cookie ou changer d’appareil crée une nouvelle identité ; les anciennes tentatives restent visibles. Pour partager des identités entre appareils, il faudrait ajouter des comptes.
-- Chaque partie a un identifiant unique. Réessayer l’envoi du même résultat ne crée pas de doublon, même avec plusieurs requêtes simultanées. Si l’API échoue, le formulaire de fin permet de réessayer ; les scores ne sont jamais présentés comme enregistrés lorsqu’ils ne le sont pas.
-- Les anciens scores localStorage/Supabase ne sont pas importés automatiquement. Les fichiers de configuration Supabase ont été retirés ; les données précédentes n’ont pas été effacées de ces stockages.
+- Le joueur saisit son **prénom et son nom** avant de jouer ; ils sont mémorisés dans le navigateur. Aucun e-mail, matricule, équipe ou autre champ personnel n’est demandé, et l’API refuse tout champ supplémentaire.
+- Le classement affiche **une ligne par joueur, avec son meilleur score**. Un joueur est identifié par son prénom et son nom, sans tenir compte de la casse ni des accents : « Élodie Dupont » sur téléphone et « elodie dupont » sur ordinateur partagent la même ligne. À égalité, le premier à avoir atteint le score passe devant.
+- En fin de partie, le joueur voit son score, son record, son rang et l’écart avec la place suivante.
+- La ligne du joueur est surlignée et porte « Vous » lorsqu’au moins une de ses parties vient de ce navigateur. Le navigateur est reconnu par un jeton aléatoire dans un cookie HttpOnly, SameSite=Lax, conservé un an et Secure sous HTTPS ; la base n’en conserve que l’empreinte.
+- Le nom n’est pas vérifié : rien n’empêche de jouer sous le nom d’un collègue. Pour l’empêcher, il faudrait une authentification (SSO).
+- Si l’envoi du score échoue, l’écran de fin propose de le renvoyer ; renvoyer la même partie ne crée pas de doublon. Si le serveur est injoignable au lancement, la partie se joue quand même, **hors classement**.
+- La page Classement se rafraîchit toutes les 15 secondes, au retour sur la page et avec « Actualiser ».
+
+### Scores vérifiés par le serveur
+
+Le navigateur ne transmet jamais de score. À chaque partie, le serveur tire la séquence de cibles (`POST /api/games`) et la conserve. En fin de partie, le navigateur envoie la liste des clics (numéro de cible, instant en millisecondes). Le serveur rejoue la partie et calcule lui-même le score. Il refuse une partie rendue avant la fin de ses 30 secondes ou plus d’une heure après son lancement, un clic sur une cible qui n’était pas affichée à cet instant, une cible cliquée deux fois, ou une partie lancée depuis un autre navigateur.
+
+Ce contrôle borne les scores à ce qu’une partie parfaite permet. Il n’empêche pas un programme de jouer à la place d’un humain, et il ne limite pas le nombre de requêtes : pour un usage exposé, ajouter une limitation de débit dans Nginx (`limit_req`).
+
+Les règles existent en deux exemplaires, `DIFFICULTY` et `types` dans `game.js`, `RULES` et `POINTS` dans `server.py`. Un test vérifie qu’ils concordent.
+
+## Données personnelles (RGPD)
+
+Ce que l’application fait d’elle-même :
+
+- **Minimisation.** Seuls le prénom, le nom et les résultats des parties sont enregistrés. Le classement public n’expose ni date ni identifiant.
+- **Information.** Le formulaire renvoie vers `confidentialite.html`, qui décrit les données, leur usage, leur durée de conservation et les droits des joueurs.
+- **Durée de conservation.** Chaque partie est supprimée automatiquement `RETENTION_DAYS` jours après avoir été jouée (365 par défaut). La purge s’exécute au plus une fois par heure, au lancement d’une partie.
+- **Effacement.** Le bouton « Supprimer mes données » de la page Données efface les parties enregistrées depuis le navigateur, son identifiant et son cookie (`DELETE /api/scores`). Pour effacer un joueur sans passer par son navigateur : `DELETE FROM scores WHERE name_key='prenom nom';` sur la base (clé en minuscules, sans accents).
+- **Aucun tiers.** Polices servies par l’application, aucune mesure d’audience. Le cookie et le stockage local sont strictement nécessaires au jeu et ne demandent pas de bandeau de consentement.
+
+Ce qui reste à la charge de l’organisateur avant l’ouverture :
+
+1. Renseigner dans `deploy/spy-rush.service` le responsable du traitement (`PRIVACY_CONTROLLER`), le contact pour l’exercice des droits (`PRIVACY_CONTACT`) et la base légale (`PRIVACY_LEGAL_BASIS`). Ces valeurs s’affichent sur la page Données ; elles ne figurent pas dans le dépôt pour que le nom de l’entreprise n’y apparaisse pas. Sans elles, la page indique « l’organisateur du jeu ».
+2. Faire valider la base légale et la durée de conservation par le DPO, et inscrire le traitement au registre.
+3. Décider qui peut voir le classement. Il affiche des prénoms et des noms à toute personne qui connaît l’URL : `noindex` n’est pas une restriction d’accès. Si le jeu est réservé aux salariés, restreindre l’accès au niveau du réseau ou de Nginx.
+4. Régler la conservation des journaux Nginx, qui contiennent des adresses IP.
+5. **À la fermeture du jeu, le 3 décembre 2026**, supprimer les données : c’est l’engagement affiché en pied de page. `RETENTION_DAYS` n’est qu’un filet de sécurité et ne le fait pas à cette date. Arrêter le service puis supprimer la base : `sudo systemctl disable --now spy-rush && sudo rm /var/lib/spy-rush/spy-rush.sqlite3*`, ainsi que ses sauvegardes.
+
+Les parties de l’ancienne table `attempts` (pseudos, scores non vérifiés) ne sont plus affichées. Elles restent soumises à la durée de conservation et à l’effacement. Pour les supprimer tout de suite : `DROP TABLE attempts;`.
 
 ## Déployer sur un VPS Linux
 
@@ -68,26 +95,33 @@ sudo -u spy-rush python3 -c "import sqlite3; src=sqlite3.connect('/var/lib/spy-r
 
 Copier ensuite cette sauvegarde vers votre stockage de sauvegarde. Pour restaurer : arrêter le service, mettre de côté les fichiers actuels de base et journaux, restaurer la sauvegarde avec les droits du compte `spy-rush`, puis redémarrer.
 
-L’affichage exhaustif charge l’historique complet. Pour des centaines de milliers de tentatives, prévoir un chargement progressif et mesurer la charge. Aucun débit maximal n’est garanti sans test sur votre VPS.
+Le classement est recalculé à chaque affichage à partir de toutes les parties conservées. Pour des centaines de milliers de parties, prévoir un chargement progressif et mesurer la charge. Aucun débit maximal n’est garanti sans test sur votre VPS.
 
 ## API
 
 - `POST /api/session` avec `{}` : crée ou retrouve l’identité du navigateur.
-- `POST /api/attempts` avec `{ "name": "Agent", "score": 300, "attempt_id": "UUID de la partie" }` : ajoute une tentative. Cookie requis. Réessayer avec le même UUID et les mêmes valeurs renvoie la tentative existante ; des valeurs différentes renvoient 409.
-- `GET /api/attempts` : toutes les tentatives avec `id`, `name`, `score`, `created_at`, `is_mine`. Aucun jeton joueur exposé.
+- `POST /api/games` avec `{}` : lance une partie. Cookie requis. Renvoie `{ "game_id": "UUID", "targets": [[apparition_ms, durée_ms, type], …] }`.
+- `POST /api/scores` avec `{ "name": "Prénom Nom", "game_id": "UUID", "hits": [[cible, instant_ms], …] }` : enregistre la partie. Renvoie `score`, `good`, `errors`, `best`, `new_best`, `rank`, `players` et `gap` (écart avec la place au-dessus, `null` pour le premier). Renvoyer la même partie renvoie le résultat existant ; sous un autre nom, 409.
+- `GET /api/scores` : le classement, `[{ "name", "score", "is_mine" }]`, meilleur score de chaque joueur.
+- `DELETE /api/scores` : efface les parties et l’identifiant du navigateur.
+- `GET /api/privacy` : responsable, contact, base légale et durée de conservation affichés sur la page Données.
 
-Les requêtes utilisent la même origine. Le serveur valide le JSON, la taille des requêtes, un pseudo de 1 à 16 caractères et un score entier entre −10 000 et 20 000. Les scores restent calculés côté client : ce contrôle ne remplace pas un anti-triche serveur ni une protection contre le spam à grande échelle.
+Les requêtes utilisent la même origine ; `POST` et `DELETE` vérifient l’en-tête `Origin`. Le serveur valide le JSON, la taille des requêtes (4 ko) et le nom : prénom et nom, 3 à 40 caractères, lettres séparées par une espace, un tiret ou une apostrophe.
 
 ## Jeu et vérifications
 
-Badge, porte fermée et téléphone d’urgence : +100 ; sans badge et porte ouverte : −150 ; voleur : −200. Une cible ignorée ne coûte rien. Réglages dans `DIFFICULTY` en haut de `game.js`. `?debug=1` active les traces toutes les 5 secondes et les fonctions de diagnostic. Le chrono ne se met pas en pause quand l’onglet est masqué.
+Badge, porte fermée et téléphone d’urgence : +100 ; sans badge et porte ouverte : −150 ; voleur : −200. Tous les 4 bons clics d’affilée, le multiplicateur monte d’un cran, jusqu’à ×5 ; une erreur le ramène à ×1. Une cible ignorée ne coûte rien et n’interrompt pas la série. Chaque partie commence par un décompte de trois temps.
+
+En jeu, le plateau occupe tout l’écran : 3 × 4 cases sur téléphone, 4 × 3 sur ordinateur, 6 × 2 sur téléphone en paysage. Les cibles réagissent dès le contact du doigt. Le son se coupe depuis la barre du haut.
+
+Réglages dans `DIFFICULTY` en haut de `game.js`, à reporter dans `server.py`. `?debug=1` active les traces toutes les 5 secondes et les fonctions de diagnostic. Le chrono ne se met pas en pause quand l’onglet est masqué.
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 node tests/logic.cjs
 ```
 
-Les tests couvrent les règles du jeu, la sauvegarde automatique, les réessais, 64 enregistrements concurrents depuis 8 identités, la persistance après réouverture, les homonymes, l’absence de limite de 10, la validation et l’inaccessibilité des fichiers privés.
+Les tests couvrent les règles et le combo des deux côtés, le recalcul du score et le refus des parties impossibles, le meilleur score par joueur, les réessais et 64 enregistrements concurrents, l’effacement, la durée de conservation, la validation des noms et l’inaccessibilité des fichiers privés.
 
 ## Identité visuelle
 
@@ -97,7 +131,7 @@ Les polices Barlow Condensed et DM Sans (licence SIL OFL, voir `assets/fonts/OFL
 
 ## Préparation à la validation cybersécurité
 
-- `index.html` et `classement.html` contiennent `<meta name="robots" content="noindex, nofollow">` immédiatement après `<head>`.
+- `index.html`, `classement.html` et `confidentialite.html` contiennent `<meta name="robots" content="noindex, nofollow">` immédiatement après `<head>`.
 - `robots.txt` est à la racine du projet, avec le contenu fourni :
 
 ```text
